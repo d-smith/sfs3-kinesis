@@ -1,6 +1,7 @@
 const AWS = require('aws-sdk');
 const S3 = new AWS.S3();
 const stepFunctions = new AWS.StepFunctions();
+const kinesis = new AWS.Kinesis();
 
 class S3DataPreconditionError extends Error {
     constructor(...args) {
@@ -144,7 +145,20 @@ const kickOffDownstream = async (downstreamInput) => {
 }
 
 const doNotification = async (event,msg) => {
-    console.log('notify using kinsesis');
+    let key = event['processData'];
+    let eventData = {
+        txnId: key,
+        status: msg
+    };
+
+    let params = {
+        Data: JSON.stringify(eventData),
+        PartitionKey: key,
+        StreamName: process.env.STATUS_STREAM_NAME
+    }
+    
+    let streamResult = await kinesis.putRecord(params).promise();
+    console.log(streamResult);
 }
 
 module.exports.stepF = async (event, context, callback) => {
