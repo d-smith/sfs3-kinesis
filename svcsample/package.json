@@ -1,0 +1,19 @@
+{
+  "name": "svcsample",
+  "version": "1.0.0",
+  "description": "",
+  "main": "svc.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "aws-sdk": "^2.259.1",
+    "biguint-format": "^1.0.0",
+    "connect-timeout": "^1.9.0",
+    "express": "^4.16.3",
+    "flake-idgen": "^1.1.0",
+    "proxy-agent": "^3.0.0"
+  }
+}
