@@ -1,0 +1,17 @@
+version: 0.2
+
+phases:
+  install:
+    commands:
+      - npm install -g serverless
+      - npm install
+  build:
+    commands:
+      - mkdir deploy
+      - ls
+      - mv cloudformation-template-create-stack.json ./deploy/
+      - mv cloudformation-template-update-stack.json ./deploy/
+      - mv s3pdkinesis.zip ./deploy/
+      - mv serverless-state.json ./deploy/
+      - ls -R
+      - serverless deploy --region $region --stage $stage  --package deploy

@@ -1,15 +1,16 @@
-service: s3processdata
+service: s3pdkinesis
 
 provider:
   name: aws
+  stage: ${opt:stage, 'dev'}
   runtime: nodejs8.10
   environment:
     BUCKET_NAME: ${self:custom.bucketName}
     DOWNSTREAM_ARN: ${cf:downstream-${self:provider.stage}.DownstreamDash${self:provider.stage}Arn}
     STATUS_STREAM_NAME: ${self:custom.streamName}
 custom:
-  bucketName: ds97068processinput-${self:provider.stage}
-  streamName: ProcessEventStream-${self:provider.stage}
+  bucketName: ds97068processinput-${self:service}-${self:provider.stage}
+  streamName: ProcessEventStream-${self:service}-${self:provider.stage}
 
 functions:
   stepA:
@@ -47,8 +48,8 @@ functions:
 stepFunctions:
   stateMachines:
     ProcessA:
-      name: ProcessA-${opt:stage}
-      role: "arn:aws:iam::#{AWS::AccountId}:role/stateMachineRole-${opt:stage}"
+      name: sfn-${self:service}-${opt:stage}
+      role: "arn:aws:iam::#{AWS::AccountId}:role/stateMachineRole-${self:service}-${opt:stage}"
       definition:
         Comment: "A process model"
         StartAt: step-a
@@ -199,7 +200,7 @@ resources:
       Type: AWS::IAM::Role
       Properties:
         RoleName:
-          Fn::Join: [ '-', ['stateMachineRole',  '${self:provider.stage}' ]]
+          Fn::Join: [ '-', ['stateMachineRole', '${self:service}',  '${self:provider.stage}' ]]
         AssumeRolePolicyDocument:
           Version: '2012-10-17'
           Statement:
