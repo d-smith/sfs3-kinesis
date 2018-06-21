@@ -1,15 +1,16 @@
-service: s3processdata
+service: s3pdkinesis
 
 provider:
   name: aws
+  stage: ${opt:stage, 'dev'}
   runtime: nodejs8.10
   environment:
     BUCKET_NAME: ${self:custom.bucketName}
-    DOWNSTREAM_ARN: ${cf:downstream-${self:provider.stage}.DownstreamDash${self:provider.stage}Arn}
+    DOWNSTREAM_ARN: 'arn:aws:states:#{AWS::Region}:#{AWS::AccountId}:stateMachine:sfnsubprocess-${self:service}-${self:provider.stage}'
     STATUS_STREAM_NAME: ${self:custom.streamName}
 custom:
-  bucketName: ds97068processinput-${self:provider.stage}
-  streamName: ProcessEventStream-${self:provider.stage}
+  bucketName: ds97068processinput-${self:service}-${self:provider.stage}
+  streamName: ProcessEventStream-${self:service}-${self:provider.stage}
 
 functions:
   stepA:
@@ -42,13 +43,26 @@ functions:
     timeout: 10
     role:
       stepRole
+  downstreamA:
+    handler: downstream.A
+    role:
+      minimalStepRole
+  downstreamB:
+    handler: downstream.B
+    role:
+      minimalStepRole
+  downstreamC:
+    handler: downstream.C
+    role:
+      minimalStepRole
+
 
 
 stepFunctions:
   stateMachines:
     ProcessA:
-      name: ProcessA-${opt:stage}
-      role: "arn:aws:iam::#{AWS::AccountId}:role/stateMachineRole-${opt:stage}"
+      name: sfn-${self:service}-${opt:stage}
+      role: "arn:aws:iam::#{AWS::AccountId}:role/stateMachineRole-${self:service}-${opt:stage}"
       definition:
         Comment: "A process model"
         StartAt: step-a
@@ -114,6 +128,26 @@ stepFunctions:
               BackoffRate: 1
               MaxAttempts: 3
 
+    DownstreamProcess:
+      name: sfnsubprocess-${self:service}-${opt:stage}
+      definition:
+        Comment: 'downstream process invoked from hellostepfunc1'
+        StartAt:
+          downstream-a
+        States:
+          downstream-a:
+            Type: Task
+            Resource: "arn:aws:lambda:#{AWS::Region}:#{AWS::AccountId}:function:${self:service}-${opt:stage}-downstreamA"
+            Next: downstream-b
+          downstream-b:
+            Type: Task
+            Resource: "arn:aws:lambda:#{AWS::Region}:#{AWS::AccountId}:function:${self:service}-${opt:stage}-downstreamB"
+            Next: downstream-c
+          downstream-c:
+            Type: Task
+            Resource: "arn:aws:lambda:#{AWS::Region}:#{AWS::AccountId}:function:${self:service}-${opt:stage}-downstreamC"
+            End: true
+
 
 resources:
   Resources:
@@ -178,9 +212,10 @@ resources:
                       - Ref: "AWS::Region"
                       - ":"
                       - Ref: "AWS::AccountId"
-                      - ":stateMachine:downstream-"
+                      - ":stateMachine:sfnsubprocess-"
+                      - ${self:service}
+                      - "-"
                       - ${self:provider.stage}
-
         - PolicyName: s3
           PolicyDocument:
             Version: '2012-10-17'
@@ -195,11 +230,35 @@ resources:
                   -
                     - Fn::GetAtt: [ ProcessInputBucket, Arn ]
                     - '*'
+
+    minimalStepRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+              - lambda.amazonaws.com
+            Action:
+            - sts:AssumeRole
+        Path: "/"
+        Policies:
+        - PolicyName: logs
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Effect: Allow
+              Action:
+              - logs:*
+              Resource: arn:aws:logs:*:*:*
+                  
     stateMachineRole:
       Type: AWS::IAM::Role
       Properties:
         RoleName:
-          Fn::Join: [ '-', ['stateMachineRole',  '${self:provider.stage}' ]]
+          Fn::Join: [ '-', ['stateMachineRole', '${self:service}',  '${self:provider.stage}' ]]
         AssumeRolePolicyDocument:
           Version: '2012-10-17'
           Statement:

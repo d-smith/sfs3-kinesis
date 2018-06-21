@@ -135,6 +135,7 @@ module.exports.stepE = async (event, context, callback) => {
 }
 
 const kickOffDownstream = async (downstreamInput) => {
+    console.log(`kickoffDownstream ${process.env.DOWNSTREAM_ARN}`);
     var params = {
         stateMachineArn: process.env.DOWNSTREAM_ARN,
         input: downstreamInput
